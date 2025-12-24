@@ -60,6 +60,7 @@ h1 { color: var(--accent-red); margin:0; font-size:1.6rem; letter-spacing:1px; f
     max-width:400px;
     margin:10px auto;
     flex-shrink:0;
+    flex-wrap: wrap;
 }
 
 .btn-game { flex:1; padding:18px; border-radius:12px; border:none; font-weight:bold; font-size:1.2rem; cursor:pointer; color:white; }
@@ -67,7 +68,7 @@ h1 { color: var(--accent-red); margin:0; font-size:1.6rem; letter-spacing:1px; f
 .btn-no { background-color:#b71c1c; }
 
 .card-container {
-    width:100%;
+    width:90%;
     max-width:550px;
     height:480px;
     display:flex;
@@ -95,7 +96,7 @@ h1 { color: var(--accent-red); margin:0; font-size:1.6rem; letter-spacing:1px; f
 .number-grid { 
     display:grid; 
     grid-template-columns:repeat(4,1fr); 
-    gap:25px; /* Abstand zwischen Zahlen vergrößert */ 
+    gap:23px; 
     width:100%; 
 }
 
@@ -140,7 +141,6 @@ h1 { color: var(--accent-red); margin:0; font-size:1.6rem; letter-spacing:1px; f
 
 <div id="instructionText">Wähle eine Zahl zwischen (1-63). Ist sie hier?</div>
 
-<!-- JA/NEIN-Buttons jetzt oberhalb der Karte -->
 <div class="game-controls" id="gameControls">
     <button class="btn-game btn-yes" onclick="answer(true)">JA</button>
     <button class="btn-game btn-no" onclick="answer(false)">NEIN</button>
@@ -179,6 +179,8 @@ h1 { color: var(--accent-red); margin:0; font-size:1.6rem; letter-spacing:1px; f
 <script>
 const bitValues=[32,16,8,4,2,1];
 let cardIndex=0,currentSum=0,currentState="TRICK";
+let trickOrder=[]; // Zufällige Reihenfolge
+
 
 const binaryCards=[
     "Was ist der Binärcode?\n\nComputer nutzen nur 0 und 1.",
@@ -186,8 +188,13 @@ const binaryCards=[
     "Das Bit\n\nEin Bit ist die kleinste Information.",
     "Warum 6-Bit?\n\nMit 6 Bits kann man Zahlen von 0-63 darstellen.",
     "Addition\n\nNur die Bits mit 1 zählen.",
-    "Grundlage ASCII\n\nDiese Zahlen bilden Buchstaben ab."
+    "Grundlage ASCII\n\nDiese Zahlen bilden Buchstaben ab.",
+    "\"Warum funktioniert der 6-Bit-Trick?\"\n\nDer Trick funktioniert, weil jede Zahl zwischen 1 und 63 durch die Kombination der sechs Bits eindeutig dargestellt wird. Mit den JA/NEIN-Antworten kann man die Zahl genau bestimmen.\"",
+    "\"Wie ist die Logik des Tricks?\"\n\nMan zeigt nacheinander Karten mit Zahlen, die jeweils bestimmte Bit-Werte enthalten. Wer 'JA' sagt, zeigt, dass das Bit gesetzt ist. Am Ende werden alle gesetzten Bits addiert – so entsteht die gewählte Zahl.\""
 ];
+
+
+
 
 const exampleData=[
     {title:"Zahl 1",calc:"000001",expl:"Nur das Bit mit dem Wert 1 ist aktiv."},
@@ -204,6 +211,8 @@ function speak(text){if(window.speechSynthesis){speechSynthesis.cancel();let msg
 
 function setActive(id){document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));if(id) document.getElementById(id).classList.add('active');}
 
+function shuffleArray(arr){return arr.map(a=>[Math.random(),a]).sort((a,b)=>a[0]-b[0]).map(a=>a[1]);}
+
 function showTrickCard(){
     currentState="TRICK";
     setActive('navTrick');
@@ -213,24 +222,35 @@ function showTrickCard(){
     const instr=document.getElementById("instructionText");
     card.onclick=null;
 
-    if(cardIndex>=bitValues.length){
+    if(trickOrder.length===0){
+        trickOrder = shuffleArray([...bitValues]);
+        cardIndex=0;
+        currentSum=0;
+    }
+
+    if(cardIndex>=trickOrder.length){
         controls.style.display="none";
         instr.innerText="Gefunden!";
         content.innerHTML=`<div class="info-text">Deine Zahl ist<br><span style="font-size:5rem;font-weight:900;color:#cc0000;">${currentSum}</span></div>`;
         speak("Deine Zahl ist "+currentSum);
+        trickOrder=[];
         return;
     }
 
     controls.style.display="flex";
     instr.innerHTML="Wähle eine Zahl (1-63).<br>Ist sie auf dieser Karte?";
-    
+
+    const bitValue = trickOrder[cardIndex];
     let nums=[];
-    for(let i=0;i<64;i++){if(i & bitValues[cardIndex]) nums.push(i);}
+    for(let i=1;i<64;i++){
+        if(i & bitValue) nums.push(i);
+    }
+    // Highlight entfernt, nur normale Zahlen anzeigen
     content.innerHTML=`<div class="number-grid">${nums.map(n=>`<div>${n}</div>`).join("")}</div>`;
 }
 
-function answer(isYes){if(isYes) currentSum+=bitValues[cardIndex]; cardIndex++; showTrickCard();}
-function restart(){cardIndex=0; currentSum=0; showTrickCard();}
+function answer(isYes){if(isYes) currentSum+=trickOrder[cardIndex]; cardIndex++; showTrickCard();}
+function restart(){trickOrder=[]; showTrickCard();}
 function startBinaryInfo(){currentState="INFO"; setActive('navInfo'); infoIndex=0; updateInfo();}
 function updateInfo(){const card=document.getElementById("card"); const content=document.getElementById("cardContent"); document.getElementById("gameControls").style.display="none"; document.getElementById("instructionText").innerText="Tippe auf die Karte."; const parts=binaryCards[infoIndex].split("\n\n"); content.innerHTML=`<div class="info-text"><strong>${parts[0]}</strong>${parts[1]||''}</div>`; speak(binaryCards[infoIndex]); card.onclick=()=>{infoIndex++; if(infoIndex<binaryCards.length) updateInfo(); else restart();}}
 function startExamples(){currentState="EXAMPLES"; setActive('navExamples'); exampleIndex=0; updateExample();}
@@ -241,3 +261,4 @@ showTrickCard();
 
 </body>
 </html>
+
